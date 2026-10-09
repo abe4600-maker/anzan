@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>暗算モンスター討伐ゲーム</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: #ffffff;
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        h1 {
+            font-size: 1.2rem;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .screen {
+            display: none;
+        }
+        .screen.active {
+            display: block;
+        }
+        /* レベル選択画面 */
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        .level-btn {
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 0.85rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.3;
+        }
+        .level-btn:active {
+            background-color: #3730a3;
+        }
+        /* ゲーム画面 */
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .timer-bar-container {
+            width: 100%;
+            height: 8px;
+            background-color: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        .timer-bar {
+            width: 100%;
+            height: 100%;
+            background-color: #10b981;
+            transition: width 0.1s linear;
+        }
+        /* モンスター表示エリア */
+        .monster-box {
+            background: #fdf2f8;
+            border: 2px dashed #f472b6;
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        .monster-icon {
+            font-size: 2.5rem;
+            animation: bounce 0.8s infinite alternate;
+        }
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-5px); }
+        }
+        .monster-info {
+            text-align: left;
+        }
+        .monster-name {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #db2777;
+        }
+        .monster-hp {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .question-box {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin: 10px 0;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .answer-display {
+            font-size: 1.8rem;
+            height: 50px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            background-color: #f9fafb;
+            color: #111;
+            letter-spacing: 2px;
+        }
+        
+        /* 電卓風キーパッド（押しやすい大きなサイズ・3列×4行） */
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .key-btn {
+            background-color: #f3f4f6;
+            border: none;
+            font-size: 1.6rem;
+            padding: 18px 0;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #1f2937;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .key-btn:active {
+            background-color: #e5e7eb;
+            transform: scale(0.98);
+        }
+        .key-btn.clear {
+            background-color: #ffe4e6;
+            color: #e11d48;
+            font-size: 1.3rem;
+        }
+        .key-btn.submit {
+            background-color: #059669;
+            color: white;
+            font-size: 1.3rem;
+        }
+        .key-btn.submit:active {
+            background-color: #047857;
+        }
+
+        /* 正誤判定ポップアップ */
+        .feedback {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin: 5px 0;
+            height: 30px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .correct { color: #10b981; }
+        .incorrect { color: #ef4444; }
+
+        /* 結果画面 */
+        .result-medal {
+            font-size: 3rem;
+            margin: 10px 0;
+        }
+        .result-score {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .result-message-box {
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            background-color: #f9fafb;
+        }
+        #result-message {
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: #4f46e5;
+            margin: 0;
+            white-space: nowrap;
+        }
+        .retry-btn {
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- レベル選択画面 -->
+    <div id="menu-screen" class="screen active">
+        <h1>暗算モンスター討伐</h1>
+        <p style="font-size:0.8rem; color:#666; margin-bottom: 10px;">レベルを選んで出発！</p>
+        <div class="level-grid" id="level-grid"></div>
+    </div>
+
+    <!-- ゲーム画面 -->
+    <div id="game-screen" class="screen">
+        <div class="game-header">
+            <span id="q-count">問題 1 / 10</span>
+            <span id="score-count">討伐: 0</span>
+        </div>
+        <div class="timer-bar-container">
+            <div id="timer-bar" class="timer-bar"></div>
+        </div>
+
+        <!-- モンスター討伐エリア -->
+        <div class="monster-box" id="monster-box">
+            <div class="monster-icon" id="monster-icon">🟢</div>
+            <div class="monster-info">
+                <div class="monster-name" id="monster-name">スライム</div>
+                <div class="monster-hp" id="monster-hp">残りHP: 10 / 10</div>
+            </div>
+        </div>
+
+        <div class="question-box" id="question-text">5 + 3 = ?</div>
+        <div class="answer-display" id="answer-display"></div>
+        <div class="feedback" id="feedback-text"></div>
+
+        <!-- 電卓風キーパッド（押しやすい大きさ・ひらがな「けす」） -->
+        <div class="keypad">
+            <button class="key-btn" onclick="inputKey('1')">1</button>
+            <button class="key-btn" onclick="inputKey('2')">2</button>
+            <button class="key-btn" onclick="inputKey('3')">3</button>
+            <button class="key-btn" onclick="inputKey('4')">4</button>
+            <button class="key-btn" onclick="inputKey('5')">5</button>
+            <button class="key-btn" onclick="inputKey('6')">6</button>
+            <button class="key-btn" onclick="inputKey('7')">7</button>
+            <button class="key-btn" onclick="inputKey('8')">8</button>
+            <button class="key-btn" onclick="inputKey('9')">9</button>
+            <button class="key-btn clear" onclick="inputKey('C')">けす</button>
+            <button class="key-btn" onclick="inputKey('0')">0</button>
+            <button class="key-btn submit" onclick="submitAnswer()">決定</button>
+        </div>
+    </div>
+
+    <!-- 結果画面 -->
+    <div id="result-screen" class="screen">
+        <h1>討伐結果</h1>
+        <div class="result-medal" id="result-medal">💎✨</div>
+        <div class="result-score" id="result-score">10問中 10問正解！</div>
+        <div class="result-message-box">
+            <p id="result-message">完全討伐、おめでとう！</p>
+        </div>
+        <button class="retry-btn" onclick="returnToMenu()">レベル選択へ戻る</button>
+    </div>
+</div>
+
+<script>
+    const levels = [
+        { id: 1, name: "Lv.1\n1桁の足し算", time: 15, monster: { name: "プチスライム", icon: "🟢" } },
+        { id: 2, name: "Lv.2\n1桁の引き算", time: 15, monster: { name: "コウモリ", icon: "🦇" } },
+        { id: 3, name: "Lv.3\n1桁の足し引き", time: 15, monster: { name: "ゴブリン", icon: "👺" } },
+        { id: 4, name: "Lv.4\n二桁の足し算", time: 15, monster: { name: "スケルトン", icon: "💀" } },
+        { id: 5, name: "Lv.5\n二桁の引き算", time: 15, monster: { name: "オーク", icon: "🐗" } },
+        { id: 6, name: "Lv.6\n二桁の足し引き", time: 15, monster: { name: "ゴーレム", icon: "🗿" } },
+        { id: 7, name: "Lv.7\n三桁の足し引き", time: 30, monster: { name: "ドラゴン", icon: "🐉" } },
+        { id: 8, name: "Lv.8\n掛け算(1・5段)", time: 15, monster: { name: "マジックハンド", icon: "🧙‍♂️" } },
+        { id: 9, name: "Lv.9\n掛け算(2・3・4段)", time: 15, monster: { name: "ウルフパック", icon: "🐺" } },
+        { id: 10, name: "Lv.10\n掛け算(6〜9段)", time: 15, monster: { name: "ダークナイト", icon: "⚔️" } }
+    ];
+
+    let currentLevel = null;
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let currentAnswer = "";
+    let correctAnswer = 0;
+    let timer = null;
+    let timeLeft = 0;
+    let totalTime = 15;
+    let isAnswering = false;
+
+    // レベル選択ボタンの生成
+    const levelGrid = document.getElementById("level-grid");
+    levels.forEach(lvl => {
+        const btn = document.createElement("button");
+        btn.className = "level-btn";
+        btn.innerHTML = `${lvl.name.replace('\n', '<br>')}<span style="font-size:0.7rem; opacity:0.8; margin-top:2px;">vs ${lvl.monster.name}</span>`;
+        btn.onclick = () => startGame(lvl.id);
+        levelGrid.appendChild(btn);
+    });
+
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    function startGame(levelId) {
+        currentLevel = levels.find(l => l.id === levelId);
+        currentQuestionIndex = 0;
+        score = 0;
+        totalTime = currentLevel.time;
+        
+        document.getElementById("monster-icon").innerText = currentLevel.monster.icon;
+        document.getElementById("monster-name").innerText = currentLevel.monster.name;
+        
+        showScreen('game-screen');
+        nextQuestion();
+    }
+
+    function nextQuestion() {
+        if (currentQuestionIndex >= 10) {
+            showResult();
+            return;
+        }
+        currentQuestionIndex++;
+        document.getElementById("q-count").innerText = `問題 ${currentQuestionIndex} / 10`;
+        document.getElementById("score-count").innerText = `討伐: ${score}`;
+        document.getElementById("monster-hp").innerText = `残りHP: ${10 - currentQuestionIndex + 1} / 10`;
+        document.getElementById("feedback-text").innerText = "";
+        currentAnswer = "";
+        document.getElementById("answer-display").innerText = "";
+        isAnswering = true;
+
+        generateQuestion();
+        startTimer();
+    }
+
+    function generateQuestion() {
+        let n1, n2, op;
+        const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+        switch (currentLevel.id) {
+            case 1: // 1桁の足し算
+                n1 = randInt(1, 9);
+                n2 = randInt(1, 9);
+                correctAnswer = n1 + n2;
+                op = '+';
+                break;
+            case 2: // 1桁の引き算
+                n1 = randInt(1, 9);
+                n2 = randInt(1, 9);
+                if (n1 < n2) [n1, n2] = [n2, n1];
+                correctAnswer = n1 - n2;
+                op = '-';
+                break;
+            case 3: // 1桁の足し算と引き算
+                op = Math.random() < 0.5 ? '+' : '-';
+                n1 = randInt(1, 9);
+                n2 = randInt(1, 9);
+                if (op === '-' && n1 < n2) [n1, n2] = [n2, n1];
+                correctAnswer = op === '+' ? n1 + n2 : n1 - n2;
+                break;
+            case 4: // 二桁の足し算
+                n1 = randInt(10, 89);
+                n2 = randInt(10, 89);
+                correctAnswer = n1 + n2;
+                op = '+';
+                break;
+            case 5: // 二桁の引き算
+                n1 = randInt(20, 99);
+                n2 = randInt(10, n1);
+                correctAnswer = n1 - n2;
+                op = '-';
+                break;
+            case 6: // 二桁の足し算と引き算
+                op = Math.random() < 0.5 ? '+' : '-';
+                n1 = randInt(15, 80);
+                n2 = randInt(10, 50);
+                if (op === '-' && n1 < n2) [n1, n2] = [n2, n1];
+                correctAnswer = op === '+' ? n1 + n2 : n1 - n2;
+                break;
+            case 7: // 三桁の足し算と引き算
+                op = Math.random() < 0.5 ? '+' : '-';
+                n1 = randInt(100, 899);
+                n2 = randInt(100, 899);
+                if (op === '-' && n1 < n2) [n1, n2] = [n2, n1];
+                correctAnswer = op === '+' ? n1 + n2 : n1 - n2;
+                break;
+            case 8: // 掛け算 (1の段と5の段)
+                const段1 = [1, 5];
+                n1 = 段1[Math.floor(Math.random() * 段1.length)];
+                n2 = randInt(1, 9);
+                correctAnswer = n1 * n2;
+                op = '×';
+                break;
+            case 9: // 掛け算 (2の段、3の段、4の段)
+                const段2 = [2, 3, 4];
+                n1 = 段2[Math.floor(Math.random() * 段2.length)];
+                n2 = randInt(1, 9);
+                correctAnswer = n1 * n2;
+                op = '×';
+                break;
+            case 10: // 掛け算 (6の段、7の段、8の段、9の段)
+                const段3 = [6, 7, 8, 9];
+                n1 = 段3[Math.floor(Math.random() * 段3.length)];
+                n2 = randInt(1, 9);
+                correctAnswer = n1 * n2;
+                op = '×';
+                break;
+        }
+
+        document.getElementById("question-text").innerText = `${n1} ${op} ${n2} = ?`;
+    }
+
+    function startTimer() {
+        clearInterval(timer);
+        timeLeft = totalTime;
+        const timerBar = document.getElementById("timer-bar");
+        timerBar.style.width = "100%";
+        timerBar.style.backgroundColor = "#10b981";
+
+        const interval = 100;
+        const decrement = 100 / (totalTime * 10);
+
+        timer = setInterval(() => {
+            if (!isAnswering) return;
+            timeLeft -= 0.1;
+            let currentWidth = parseFloat(timerBar.style.width) - decrement;
+            timerBar.style.width = Math.max(0, currentWidth) + "%";
+
+            if (timeLeft <= 5) {
+                timerBar.style.backgroundColor = "#ef4444";
+            }
+
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                timeOut();
+            }
+        }, interval);
+    }
+
+    function inputKey(val) {
+        if (!isAnswering) return;
+        if (val === 'C') {
+            currentAnswer = "";
+        } else {
+            if (currentAnswer.length < 6) {
+                currentAnswer += val;
+            }
+        }
+        document.getElementById("answer-display").innerText = currentAnswer;
+    }
+
+    function submitAnswer() {
+        if (!isAnswering || currentAnswer === "") return;
+        isAnswering = false;
+        clearInterval(timer);
+
+        const userAns = parseInt(currentAnswer, 10);
+        const feedbackEl = document.getElementById("feedback-text");
+
+        if (userAns === correctAnswer) {
+            score++;
+            feedbackEl.innerText = `💥 攻撃ヒット！ダメージを与えた！`;
+            feedbackEl.className = "feedback correct";
+        } else {
+            feedbackEl.innerText = `🛡️ 防御された！(正解:${correctAnswer})`;
+            feedbackEl.className = "feedback incorrect";
+        }
+
+        setTimeout(nextQuestion, 1300);
+    }
+
+    function timeOut() {
+        if (!isAnswering) return;
+        isAnswering = false;
+        const feedbackEl = document.getElementById("feedback-text");
+        feedbackEl.innerText = `⏰ タイムアップ！(正解:${correctAnswer})`;
+        feedbackEl.className = "feedback incorrect";
+
+        setTimeout(nextQuestion, 1500);
+    }
+
+    function showResult() {
+        showScreen('result-screen');
+        document.getElementById("result-score").innerText = `10問中 ${score}問正解！`;
+
+        let icon = "";
+        let message = "";
+
+        if (score === 10) {
+            icon = "💎✨"; // たくさんの宝物
+            message = "たくさんの宝物を手に入れた！大勝利！";
+        } else if (score === 9) {
+            icon = "💰"; // 金貨
+            message = "金貨をゲットした！お見事！";
+        } else if (score === 8) {
+            icon = "🪙"; // 銀貨
+            message = "銀貨を獲得した！よく頑張った！";
+        } else {
+            icon = "🪦"; // 墓場（7問以下）
+            message = "モンスターにやられてしまった…無念！";
+        }
+
+        document.getElementById("result-medal").innerText = icon;
+        document.getElementById("result-message").innerText = message;
+    }
+
+    function returnToMenu() {
+        showScreen('menu-screen');
+    }
+</script>
+
+</body>
+</html>
